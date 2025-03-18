@@ -45,8 +45,11 @@
    WantedBy=multi-user.target
 3. **Перезапускаем daemon, добавляем в автозапуск и запускаем vikunja-ap.service**:
    > `sudo systemctl daemon-reload`
+   
    > `sudo systemctl enable vikunja-ap.service`
+   
    > `sudo systemctl start vikunja-ap.service`
+   
    > `sudo systemctl status vikunja-ap.service`
 
 
