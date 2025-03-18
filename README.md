@@ -23,27 +23,31 @@
    useradd --system -m -d /home/vikunja-admin-panel -s /bin/bash webapp && chown -R webapp:webapp /home/vikunja-admin-panel
    sudo chmod -R 755 /home/vikunja-admin-panel
    passwd webapp
+
 ## Добавляем в автозагрузку 
-```bash
-sudo nano /etc/systemd/system/vikunja-ap.service
-                                                                                             
-[Unit]
-Description=Flask Admin Panel
-After=network.target
+1. **Создаем  vikunja-ap.service**:
+   ```bash
+   sudo nano /etc/systemd/system/vikunja-ap.service
+2. **Вставляем**:
+     ```bash                                                            
+   [Unit]
+   Description=Flask Admin Panel
+   After=network.target
 
-[Service]
-User=webapp
-WorkingDirectory=/home/vikunja-admin-panel
-ExecStart=/usr/bin/python3 /home/vikunja-admin-panel/app.py
-Restart=always
-RestartSec=5
+   [Service]
+   User=webapp
+   WorkingDirectory=/home/vikunja-admin-panel
+   ExecStart=/usr/bin/python3 /home/vikunja-admin-panel/app.py
+   Restart=always
+   RestartSec=5
 
-[Install]
-WantedBy=multi-user.target
-
-sudo systemctl daemon-reload
-sudo systemctl start vikunja-ap.service
-sudo systemctl status vikunja-ap.service
+   [Install]
+   WantedBy=multi-user.target
+3. **Перезапускаем daemon, добавляем в автозапуск и запускаем vikunja-ap.service**:
+   > `sudo systemctl daemon-reload`
+   > `sudo systemctl enable vikunja-ap.service`
+   > `sudo systemctl start vikunja-ap.service`
+   > `sudo systemctl status vikunja-ap.service`
 
 
 
