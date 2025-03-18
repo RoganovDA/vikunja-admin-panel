@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vikunja Admin Panel</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+</head>
+<body>
+    <!-- Хедер с названием сайта и навигацией -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="{{ url_for('index') }}">Vikunja Admin Panel</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ml-auto">
+            {% if 'user_id' not in session %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('login') }}">Войти</a>
+                </li>
+            {% else %}
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-toggle="modal" data-target="#changePasswordModal">{{ current_user[0] }}</a>  <!-- Отображение имени текущего пользователя -->
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('logout') }}">Выйти</a>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+</nav>
+
+    <div class="container mt-5">
+        <h2 class="text-center">Управление пользователями</h2>
+
+        {% if 'user_id' not in session %}
+        <div class="alert alert-danger" role="alert">
+            Вы не авторизованы! Пожалуйста, войдите в систему.
+        </div>
+        {% else %}
+        <!-- Уведомления -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="container">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="d-flex justify-content-between align-items-center mt-4">
+            <h2>Список пользователей</h2>
+            <button class="btn btn-primary" data-toggle="modal" data-target="#createUserModal">
+			<i class="bi bi-plus"></i>Добавить пользователя
+			</button>
+            <input type="text" id="search" class="form-control w-25" placeholder="Поиск..." onkeyup="searchUsers()">
+        </div>
+
+        <div class="table-responsive mt-4">
+            <table class="table table-striped" id="usersTable">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Имя пользователя</th>
+                        <th>Электронная почта</th>
+                        <th>Статус</th>
+                        <th>Дата создания</th>
+                        <th>Удалить</th>
+                        <th>Обновить</th>
+                        <th>Изменить статус</th>
+                        <th>Сбросить пароль</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.status }}</td>
+                        <td>{{ user.created }}</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" data-toggle="modal" data-target="#confirmDeleteModal" data-user-id="{{ user.id }}">
+                                <i class="bi bi-trash"></i> Удалить
+                            </button>
+                        </td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#updateUserModal" data-user-id="{{ user.id }}" data-username="{{ user.username }}" data-email="{{ user.email }}">
+                                <i class="bi bi-pencil"></i> Редактировать
+                            </button>
+                        </td>
+                        <td>
+                            {% if user.status == 'Active' %}
+                                <form action="/change-status/{{ user.id }}/disable" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-secondary btn-sm">Отключить</button>
+                                </form>
+                            {% else %}
+                                <form action="/change-status/{{ user.id }}/enable" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-success btn-sm">Включить</button>
+                                </form>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-info btn-sm" data-toggle="modal" data-target="#resetPasswordModal" data-user-id="{{ user.id }}">
+                                Сбросить пароль
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% endif %}
+    </div>
+
+    <!-- Модальное окно для создания нового пользователя -->
+    <div class="modal fade" id="createUserModal" tabindex="-1" role="dialog" aria-labelledby="createUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createUserModalLabel">Введите данные нового пользователя</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form action="/create" method="POST" id="createUserForm">
+                        <div class="form-group">
+                            <label for="username">Имя пользователя</label>
+                            <input type="text" name="username" class="form-control" id="username" required minlength="3">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Электронная почта</label>
+                            <input type="email" name="email" class="form-control" id="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Пароль</label>
+                            <input type="password" name="password" class="form-control" id="password" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Создать пользователя</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для подтверждения удаления -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" role="dialog" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteModalLabel">Подтвердите удаление</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Вы уверены, что хотите удалить этого пользователя?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Отмена</button>
+                    <form id="confirmDeleteForm" action="" method="POST" style="display:inline;">
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для сброса пароля -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1" role="dialog" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="resetPasswordModalLabel">Сбросить пароль пользователя</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form action="" method="POST" id="resetPasswordForm">
+                        <div class="form-group">
+                            <label for="newPassword">Новый пароль</label>
+                            <input type="password" name="new_password" class="form-control" id="newPassword" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Сбросить пароль</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для обновления пользователя -->
+    <div class="modal fade" id="updateUserModal" tabindex="-1" role="dialog" aria-labelledby="updateUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateUserModalLabel">Обновить пользователя</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form action="" method="POST" id="updateUserForm">
+                        <div class="form-group">
+                            <label for="updateUsername">Имя пользователя</label>
+                            <input type="text" name="username" class="form-control" id="updateUsername" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="updateEmail">Электронная почта</label>
+                            <input type="email" name="email" class="form-control" id="updateEmail" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Обновить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- Модальное окно для смены пароля Администратора sql -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" role="dialog" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changePasswordModalLabel">Смена пароля</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form action="/change-password" method="POST" id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="newPassword">Новый пароль</label>
+                        <input type="password" name="new_password" class="form-control" id="newPassword" required minlength="6">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Сменить пароль</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+    <script>
+        function searchUsers() {
+            var input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("search");
+            filter = input.value.toUpperCase();
+            table = document.getElementById("usersTable");
+            tr = table.getElementsByTagName("tr");
+
+            for (i = 0; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName("td")[1]; // Поиск по имени пользователя
+                if (td) {
+                    txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        $('#confirmDeleteModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget)
+            var userId = button.data('user-id')
+            var form = $('#confirmDeleteForm');
+            form.attr('action', '/delete/' + userId); 
+        });
+
+        $('#updateUserModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget)
+            var userId = button.data('user-id')
+            var username = button.data('username')
+            var email = button.data('email')
+            var form = $('#updateUserForm');
+            form.attr('action', '/update/' + userId);
+            $('#updateUsername').val(username);
+            $('#updateEmail').val(email);
+        });
+
+        $('#resetPasswordModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget)
+            var userId = button.data('user-id')
+            var form = $('#resetPasswordForm');
+            form.attr('action', '/reset-password/' + userId);
+        });
+    </script>
+</body>
+</html>
