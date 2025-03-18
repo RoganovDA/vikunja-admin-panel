@@ -20,9 +20,7 @@
    /usr/bin/python3 -m pip install flask werkzeug
    cd /home
    git clone https://github.com/RoganovDA/vikunja-admin-panel.git
-   useradd --system -m -d /home/vikunja-admin-panel -s /bin/bash webapp && chown -R webapp:webapp /home/vikunja-admin-panel
    sudo chmod -R 755 /home/vikunja-admin-panel
-   passwd webapp
 
 ## Добавляем в автозагрузку 
 1. **Создаем  vikunja-ap.service**:
@@ -35,7 +33,7 @@
    After=network.target
 
    [Service]
-   User=webapp
+   User=root
    WorkingDirectory=/home/vikunja-admin-panel
    ExecStart=/usr/bin/python3 /home/vikunja-admin-panel/app.py
    Restart=always
